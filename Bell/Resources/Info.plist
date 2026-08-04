@@ -24,6 +24,8 @@
     <true/>
     <key>UILaunchScreen</key>
     <dict/>
+    <key>SUPABASE_PUBLISHABLE_KEY</key>
+    <string>sb_publishable_SbJWOni_qdzyGrXSwzGffw_cnQHLPuO</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Bell uses the microphone so you can ask for help by speaking.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
