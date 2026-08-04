@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleDisplayName</key><string>Bell</string>
+<key>NSMicrophoneUsageDescription</key><string>Bell uses the microphone so you can ask for help by speaking.</string>
+<key>NSSpeechRecognitionUsageDescription</key><string>Bell turns your spoken request into text so it can help you.</string>
+<key>NSContactsUsageDescription</key><string>Bell can help you add trusted family and friends.</string>
+<key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationPortrait</string></array>
+</dict></plist>
