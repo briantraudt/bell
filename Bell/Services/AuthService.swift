@@ -1,6 +1,6 @@
 import Foundation
 
-struct BellAuthSession: Codable {
+struct BellAuthSession: Decodable {
     let accessToken: String
     let refreshToken: String?
     let userID: UUID
@@ -38,16 +38,14 @@ enum BellAuthError: LocalizedError {
 
 actor AuthService {
     static let shared = AuthService()
-
     private let decoder = JSONDecoder()
-    private let encoder = JSONEncoder()
 
     func sendSMSCode(phone: String) async throws {
         let normalized = Self.normalizeUSPhone(phone)
         guard normalized.count == 12 else { throw BellAuthError.invalidPhone }
-        try await authRequest(
+        _ = try await authRequest(
             path: "otp",
-            body: ["phone": normalized, "create_user": true, "channel": "sms"] as [String: Any]
+            body: ["phone": normalized, "create_user": true, "channel": "sms"]
         )
     }
 
@@ -142,10 +140,14 @@ actor AuthService {
 
     private func execute(_ request: URLRequest) async throws -> Data {
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let http = response as? HTTPURLResponse else { throw BellAuthError.server("Bell could not reach the server.") }
+        guard let http = response as? HTTPURLResponse else {
+            throw BellAuthError.server("Bell could not reach the server.")
+        }
         guard 200..<300 ~= http.statusCode else {
-            let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["msg"] as? String
-                ?? (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["message"] as? String
+            let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let message = payload?["msg"] as? String
+                ?? payload?["message"] as? String
+                ?? payload?["error_description"] as? String
                 ?? "Bell could not complete that step. Please try again."
             throw BellAuthError.server(message)
         }
