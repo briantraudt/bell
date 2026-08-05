@@ -8,7 +8,6 @@ struct OnboardingFlowView: View {
     @State private var code = ""
     @State private var firstName = ""
     @State private var lastName = ""
-    @State private var trustedName = ""
     @State private var trustedRelationship = "Daughter"
     @State private var trustedPhone = ""
     @State private var canViewActivity = true
@@ -17,6 +16,11 @@ struct OnboardingFlowView: View {
     @State private var authSession: BellAuthSession?
     @State private var isWorking = false
     @State private var errorMessage: String?
+
+    private let relationshipChoices = [
+        "Daughter", "Son", "Spouse", "Partner", "Sister", "Brother",
+        "Granddaughter", "Grandson", "Friend", "Neighbor", "Caregiver"
+    ]
 
     var body: some View {
         ZStack {
@@ -174,11 +178,37 @@ struct OnboardingFlowView: View {
         OnboardingPage(
             step: "Step 4 of 4",
             title: "Who should we call if you need help?",
-            subtitle: "You can skip this and add someone later."
+            subtitle: "Choose their relationship and enter their phone number. You can also skip this."
         ) {
             VStack(spacing: 14) {
-                BellTextField(title: "Name", text: $trustedName, contentType: .name)
-                BellTextField(title: "Relationship", text: $trustedRelationship)
+                Menu {
+                    ForEach(relationshipChoices, id: \.self) { relationship in
+                        Button(relationship) { trustedRelationship = relationship }
+                    }
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Relationship")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(Color.bellMute)
+                            Text(trustedRelationship)
+                                .font(BellType.body)
+                                .foregroundStyle(Color.bellInk)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(Color.bellTeal)
+                    }
+                    .padding(.horizontal, 18)
+                    .frame(maxWidth: .infinity, minHeight: 72)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.bellLineStrong, lineWidth: 1.5))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Relationship, \(trustedRelationship)")
+
                 BellTextField(
                     title: "Phone number",
                     text: $trustedPhone,
@@ -188,7 +218,7 @@ struct OnboardingFlowView: View {
 
                 Toggle(isOn: $canViewActivity) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Let \(trustedName.isEmpty ? "this person" : trustedName) see what I book")
+                        Text("Let this person see what I book")
                             .font(BellType.rowTitle)
                         Text("They never see your private conversations.")
                             .font(.system(size: 16))
@@ -201,9 +231,10 @@ struct OnboardingFlowView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 22))
 
                 BellPrimaryButton(title: "Continue") { step = .accessibility }
+                    .disabled(trustedPhone.filter(\.isNumber).count != 10)
+                    .opacity(trustedPhone.filter(\.isNumber).count == 10 ? 1 : 0.45)
 
                 Button("Skip for now") {
-                    trustedName = ""
                     trustedPhone = ""
                     step = .accessibility
                 }
@@ -366,8 +397,8 @@ struct OnboardingFlowView: View {
                 city: "",
                 textScale: textScale,
                 readAloud: readAloud,
-                trustedName: trustedName.trimmed,
-                trustedRelationship: trustedRelationship.trimmed,
+                trustedName: firstName.trimmed,
+                trustedRelationship: trustedRelationship,
                 trustedPhone: trustedPhone,
                 canViewActivity: canViewActivity
             )
