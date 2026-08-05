@@ -8,9 +8,9 @@ struct OnboardingFlowView: View {
     @State private var code = ""
     @State private var firstName = ""
     @State private var lastName = ""
-    @State private var trustedRelationship = "Daughter"
-    @State private var trustedPhone = ""
-    @State private var canViewActivity = true
+    @State private var emergencyFirstName = ""
+    @State private var emergencyRelationship = "Daughter"
+    @State private var emergencyPhone = ""
     @State private var textScale = 1.0
     @State private var readAloud = false
     @State private var authSession: BellAuthSession?
@@ -31,7 +31,7 @@ struct OnboardingFlowView: View {
                 case .phone: phoneEntry
                 case .code: codeEntry
                 case .name: nameEntry
-                case .trustedContact: trustedContact
+                case .emergencyContact: emergencyContactEntry
                 case .accessibility: accessibility
                 case .complete: complete
                 }
@@ -89,7 +89,7 @@ struct OnboardingFlowView: View {
             subtitle: "We'll text you a code. No password to remember, ever."
         ) {
             VStack(spacing: 18) {
-                Text(formattedPhone)
+                Text(formattedPhone(phone))
                     .font(.system(size: 42, weight: .semibold, design: .rounded))
                     .frame(maxWidth: .infinity, minHeight: 86)
                     .background(Color.white)
@@ -112,7 +112,7 @@ struct OnboardingFlowView: View {
         OnboardingPage(
             step: "Step 2 of 4",
             title: "Enter the code",
-            subtitle: "We sent a six-digit code to \(formattedPhone)."
+            subtitle: "We sent a six-digit code to \(formattedPhone(phone))."
         ) {
             VStack(spacing: 20) {
                 HStack(spacing: 8) {
@@ -137,11 +137,9 @@ struct OnboardingFlowView: View {
                 .disabled(isWorking || code.count != 6)
                 .opacity(code.count == 6 ? 1 : 0.45)
 
-                Button("Resend code") {
-                    Task { await sendCode(stayOnCode: true) }
-                }
-                .font(BellType.button)
-                .frame(minHeight: 64)
+                Button("Resend code") { Task { await sendCode(stayOnCode: true) } }
+                    .font(BellType.button)
+                    .frame(minHeight: 64)
 
                 Text("Didn't receive it? Wait a moment, then tap Resend code.")
                     .font(.system(size: 16))
@@ -167,23 +165,29 @@ struct OnboardingFlowView: View {
                     .foregroundStyle(Color.bellSlate)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                BellPrimaryButton(title: "Continue") { step = .trustedContact }
+                BellPrimaryButton(title: "Continue") { step = .emergencyContact }
                     .disabled(firstName.trimmed.isEmpty || lastName.trimmed.isEmpty)
                     .opacity(firstName.trimmed.isEmpty || lastName.trimmed.isEmpty ? 0.45 : 1)
             }
         }
     }
 
-    private var trustedContact: some View {
+    private var emergencyContactEntry: some View {
         OnboardingPage(
             step: "Step 4 of 4",
-            title: "Who should we call if you need help?",
-            subtitle: "Choose their relationship and enter their phone number. You can also skip this."
+            title: "Choose an emergency contact",
+            subtitle: "Bell may contact this person if you ask for help. They must agree before they are added."
         ) {
             VStack(spacing: 14) {
+                BellTextField(
+                    title: "Their first name",
+                    text: $emergencyFirstName,
+                    contentType: .givenName
+                )
+
                 Menu {
                     ForEach(relationshipChoices, id: \.self) { relationship in
-                        Button(relationship) { trustedRelationship = relationship }
+                        Button(relationship) { emergencyRelationship = relationship }
                     }
                 } label: {
                     HStack {
@@ -191,7 +195,7 @@ struct OnboardingFlowView: View {
                             Text("Relationship")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(Color.bellMute)
-                            Text(trustedRelationship)
+                            Text(emergencyRelationship)
                                 .font(BellType.body)
                                 .foregroundStyle(Color.bellInk)
                         }
@@ -207,35 +211,33 @@ struct OnboardingFlowView: View {
                     .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.bellLineStrong, lineWidth: 1.5))
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Relationship, \(trustedRelationship)")
+                .accessibilityLabel("Relationship, \(emergencyRelationship)")
 
                 BellTextField(
-                    title: "Phone number",
-                    text: $trustedPhone,
+                    title: "Their phone number",
+                    text: $emergencyPhone,
                     contentType: .telephoneNumber,
                     keyboard: .phonePad
                 )
 
-                Toggle(isOn: $canViewActivity) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Let this person see what I book")
-                            .font(BellType.rowTitle)
-                        Text("They never see your private conversations.")
-                            .font(.system(size: 16))
+                BellCard(primary: true) {
+                    HStack(alignment: .top, spacing: 14) {
+                        Image(systemName: "message.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(Color.bellTeal)
+                        Text("When you finish setup, Bell will text them. They must reply Y to accept. Until then, they remain pending and will not be used as your emergency contact.")
+                            .font(.system(size: 17))
                             .foregroundStyle(Color.bellSlate)
                     }
                 }
-                .tint(.bellTeal)
-                .padding(18)
-                .background(Color.white)
-                .clipShape(RoundedRectangle(cornerRadius: 22))
 
                 BellPrimaryButton(title: "Continue") { step = .accessibility }
-                    .disabled(trustedPhone.filter(\.isNumber).count != 10)
-                    .opacity(trustedPhone.filter(\.isNumber).count == 10 ? 1 : 0.45)
+                    .disabled(emergencyFirstName.trimmed.isEmpty || emergencyPhone.filter(\.isNumber).count != 10)
+                    .opacity(!emergencyFirstName.trimmed.isEmpty && emergencyPhone.filter(\.isNumber).count == 10 ? 1 : 0.45)
 
                 Button("Skip for now") {
-                    trustedPhone = ""
+                    emergencyFirstName = ""
+                    emergencyPhone = ""
                     step = .accessibility
                 }
                 .font(BellType.button)
@@ -289,7 +291,7 @@ struct OnboardingFlowView: View {
     }
 
     private var complete: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 18) {
             Spacer()
             Image(systemName: "checkmark")
                 .font(.system(size: 50, weight: .bold))
@@ -302,22 +304,24 @@ struct OnboardingFlowView: View {
                 .font(BellType.title(42))
                 .multilineTextAlignment(.center)
 
-            BellCard(primary: true) {
+            if !emergencyFirstName.trimmed.isEmpty {
+                BellCard(primary: true) {
+                    HStack(spacing: 16) {
+                        Image(systemName: "message.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(Color.bellTeal)
+                        Text("We texted \(emergencyFirstName). They will become your emergency contact after replying Y.")
+                            .font(BellType.body)
+                    }
+                }
+            }
+
+            BellCard {
                 HStack(spacing: 16) {
                     Image(systemName: "phone.fill")
                         .font(.system(size: 28))
                         .foregroundStyle(Color.bellClay)
                     Text("The red HELP button is always in the top corner.")
-                        .font(BellType.body)
-                }
-            }
-
-            BellCard(primary: true) {
-                HStack(spacing: 16) {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(Color.bellTeal)
-                    Text("The green bar at the bottom listens whenever you tap it.")
                         .font(BellType.body)
                 }
             }
@@ -337,8 +341,8 @@ struct OnboardingFlowView: View {
         .padding(28)
     }
 
-    private var formattedPhone: String {
-        let digits = phone.filter(\.isNumber)
+    private func formattedPhone(_ value: String) -> String {
+        let digits = value.filter(\.isNumber)
         let area = String(digits.prefix(3))
         let prefix = String(digits.dropFirst(3).prefix(3))
         let line = String(digits.dropFirst(6).prefix(4))
@@ -397,10 +401,10 @@ struct OnboardingFlowView: View {
                 city: "",
                 textScale: textScale,
                 readAloud: readAloud,
-                trustedName: firstName.trimmed,
-                trustedRelationship: trustedRelationship,
-                trustedPhone: trustedPhone,
-                canViewActivity: canViewActivity
+                trustedName: emergencyFirstName.trimmed,
+                trustedRelationship: emergencyRelationship,
+                trustedPhone: emergencyPhone,
+                canViewActivity: false
             )
             step = .complete
         } catch {
@@ -414,7 +418,7 @@ private enum OnboardingStep {
     case phone
     case code
     case name
-    case trustedContact
+    case emergencyContact
     case accessibility
     case complete
 }
@@ -477,11 +481,8 @@ private struct NumericKeypad: View {
                                 }
                             } label: {
                                 Group {
-                                    if key == "delete.left.fill" {
-                                        Image(systemName: key)
-                                    } else {
-                                        Text(key)
-                                    }
+                                    if key == "delete.left.fill" { Image(systemName: key) }
+                                    else { Text(key) }
                                 }
                                 .font(.system(size: 30, weight: .semibold, design: .rounded))
                                 .frame(maxWidth: .infinity, minHeight: 66)
