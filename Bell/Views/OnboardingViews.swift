@@ -2,13 +2,12 @@ import SwiftUI
 
 struct OnboardingFlowView: View {
     @Environment(AppState.self) private var state
+
     @State private var step: OnboardingStep = .welcome
     @State private var phone = ""
     @State private var code = ""
     @State private var firstName = ""
     @State private var lastName = ""
-    @State private var address = ""
-    @State private var city = ""
     @State private var trustedName = ""
     @State private var trustedRelationship = "Daughter"
     @State private var trustedPhone = ""
@@ -27,7 +26,7 @@ struct OnboardingFlowView: View {
                 case .welcome: welcome
                 case .phone: phoneEntry
                 case .code: codeEntry
-                case .nameAndHome: nameAndHome
+                case .name: nameEntry
                 case .trustedContact: trustedContact
                 case .accessibility: accessibility
                 case .complete: complete
@@ -80,7 +79,11 @@ struct OnboardingFlowView: View {
     }
 
     private var phoneEntry: some View {
-        OnboardingPage(step: "Step 1 of 4", title: "What's your phone number?", subtitle: "We'll text you a code. No password to remember, ever.") {
+        OnboardingPage(
+            step: "Step 1 of 4",
+            title: "What's your phone number?",
+            subtitle: "We'll text you a code. No password to remember, ever."
+        ) {
             VStack(spacing: 18) {
                 Text(formattedPhone)
                     .font(.system(size: 42, weight: .semibold, design: .rounded))
@@ -89,7 +92,9 @@ struct OnboardingFlowView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color.bellLineStrong, lineWidth: 2))
                     .accessibilityLabel("Phone number")
+
                 NumericKeypad(value: $phone, maximumDigits: 10)
+
                 BellPrimaryButton(title: isWorking ? "Sending…" : "Send me the code") {
                     Task { await sendCode() }
                 }
@@ -100,7 +105,11 @@ struct OnboardingFlowView: View {
     }
 
     private var codeEntry: some View {
-        OnboardingPage(step: "Step 2 of 4", title: "Enter the code", subtitle: "We sent a six-digit code to \(formattedPhone).") {
+        OnboardingPage(
+            step: "Step 2 of 4",
+            title: "Enter the code",
+            subtitle: "We sent a six-digit code to \(formattedPhone)."
+        ) {
             VStack(spacing: 20) {
                 HStack(spacing: 8) {
                     ForEach(0..<6, id: \.self) { index in
@@ -109,55 +118,74 @@ struct OnboardingFlowView: View {
                             .frame(maxWidth: .infinity, minHeight: 76)
                             .background(Color.white)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(index == code.count ? Color.bellTeal : Color.bellLineStrong, lineWidth: 2))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(index == code.count ? Color.bellTeal : Color.bellLineStrong, lineWidth: 2)
+                            )
                     }
                 }
+
                 NumericKeypad(value: $code, maximumDigits: 6)
-                BellPrimaryButton(title: isWorking ? "Checking…" : "Check the code") {
+
+                BellPrimaryButton(title: isWorking ? "Verifying…" : "Verify code") {
                     Task { await verifyCode() }
                 }
                 .disabled(isWorking || code.count != 6)
                 .opacity(code.count == 6 ? 1 : 0.45)
-                Button("Send it again") { Task { await sendCode(stayOnCode: true) } }
-                    .font(BellType.button)
-                    .frame(minHeight: 64)
-                VStack(spacing: 8) {
-                    Text("Can't find the message?")
-                        .font(BellType.body)
-                        .foregroundStyle(Color.bellSlate)
-                    Text("SMS must be enabled for this test. Voice-code fallback will be added after the Twilio Verify service is connected.")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color.bellMute)
-                        .multilineTextAlignment(.center)
+
+                Button("Resend code") {
+                    Task { await sendCode(stayOnCode: true) }
                 }
+                .font(BellType.button)
+                .frame(minHeight: 64)
+
+                Text("Didn't receive it? Wait a moment, then tap Resend code.")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Color.bellMute)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
             }
         }
     }
 
-    private var nameAndHome: some View {
-        OnboardingPage(step: "Step 3 of 4", title: "Tell Bell who you are", subtitle: "This helps us make the app feel familiar.") {
+    private var nameEntry: some View {
+        OnboardingPage(
+            step: "Step 3 of 4",
+            title: "What's your name?",
+            subtitle: "This helps Bell feel familiar."
+        ) {
             VStack(spacing: 14) {
                 BellTextField(title: "First name", text: $firstName, contentType: .givenName)
                 BellTextField(title: "Last name", text: $lastName, contentType: .familyName)
-                BellTextField(title: "Home address", text: $address, contentType: .fullStreetAddress)
-                BellTextField(title: "City", text: $city, contentType: .addressCity)
-                Text("Your address is only given to someone after you book them, and never shown publicly.")
+
+                Text("We'll ask for your address only when a service needs to come to your home.")
                     .font(.system(size: 16))
                     .foregroundStyle(Color.bellSlate)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
                 BellPrimaryButton(title: "Continue") { step = .trustedContact }
-                    .disabled(firstName.trimmed.isEmpty || address.trimmed.isEmpty || city.trimmed.isEmpty)
-                    .opacity(firstName.trimmed.isEmpty || address.trimmed.isEmpty || city.trimmed.isEmpty ? 0.45 : 1)
+                    .disabled(firstName.trimmed.isEmpty || lastName.trimmed.isEmpty)
+                    .opacity(firstName.trimmed.isEmpty || lastName.trimmed.isEmpty ? 0.45 : 1)
             }
         }
     }
 
     private var trustedContact: some View {
-        OnboardingPage(step: "Step 4 of 4", title: "Who should we call if you need help?", subtitle: "You can skip this and add someone later.") {
+        OnboardingPage(
+            step: "Step 4 of 4",
+            title: "Who should we call if you need help?",
+            subtitle: "You can skip this and add someone later."
+        ) {
             VStack(spacing: 14) {
                 BellTextField(title: "Name", text: $trustedName, contentType: .name)
                 BellTextField(title: "Relationship", text: $trustedRelationship)
-                BellTextField(title: "Phone number", text: $trustedPhone, contentType: .telephoneNumber, keyboard: .phonePad)
+                BellTextField(
+                    title: "Phone number",
+                    text: $trustedPhone,
+                    contentType: .telephoneNumber,
+                    keyboard: .phonePad
+                )
+
                 Toggle(isOn: $canViewActivity) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Let \(trustedName.isEmpty ? "this person" : trustedName) see what I book")
@@ -171,7 +199,9 @@ struct OnboardingFlowView: View {
                 .padding(18)
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 22))
-                BellPrimaryButton(title: "Finish") { step = .accessibility }
+
+                BellPrimaryButton(title: "Continue") { step = .accessibility }
+
                 Button("Skip for now") {
                     trustedName = ""
                     trustedPhone = ""
@@ -184,7 +214,11 @@ struct OnboardingFlowView: View {
     }
 
     private var accessibility: some View {
-        OnboardingPage(step: nil, title: "Make Bell comfortable to read", subtitle: "You can change this any time.") {
+        OnboardingPage(
+            step: nil,
+            title: "Make Bell comfortable to read",
+            subtitle: "You can change this any time."
+        ) {
             VStack(spacing: 22) {
                 Text("Bell will make important things clear and easy to find.")
                     .font(.system(size: 27 * textScale, weight: .medium))
@@ -193,6 +227,7 @@ struct OnboardingFlowView: View {
                     .padding(20)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 22))
+
                 VStack(spacing: 10) {
                     Slider(value: $textScale, in: 0.9...1.25, step: 0.05)
                         .tint(.bellTeal)
@@ -206,12 +241,14 @@ struct OnboardingFlowView: View {
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(Color.bellSlate)
                 }
+
                 Toggle("Read things out loud to me", isOn: $readAloud)
                     .font(BellType.rowTitle)
                     .tint(.bellTeal)
                     .padding(18)
                     .background(Color.white)
                     .clipShape(RoundedRectangle(cornerRadius: 22))
+
                 BellPrimaryButton(title: isWorking ? "Saving…" : "That's good") {
                     Task { await finishOnboarding() }
                 }
@@ -229,9 +266,11 @@ struct OnboardingFlowView: View {
                 .frame(width: 104, height: 104)
                 .background(Color.bellTeal)
                 .clipShape(RoundedRectangle(cornerRadius: 30))
+
             Text("You're all set, \(firstName)")
                 .font(BellType.title(42))
                 .multilineTextAlignment(.center)
+
             BellCard(primary: true) {
                 HStack(spacing: 16) {
                     Image(systemName: "phone.fill")
@@ -241,6 +280,7 @@ struct OnboardingFlowView: View {
                         .font(BellType.body)
                 }
             }
+
             BellCard(primary: true) {
                 HStack(spacing: 16) {
                     Image(systemName: "mic.fill")
@@ -250,9 +290,17 @@ struct OnboardingFlowView: View {
                         .font(BellType.body)
                 }
             }
+
             Spacer()
+
             BellPrimaryButton(title: "Take me in") {
-                state.completeOnboarding(firstName: firstName, lastName: lastName, phone: phone, city: city, readAloud: readAloud)
+                state.completeOnboarding(
+                    firstName: firstName,
+                    lastName: lastName,
+                    phone: phone,
+                    city: "",
+                    readAloud: readAloud
+                )
             }
         }
         .padding(28)
@@ -260,12 +308,12 @@ struct OnboardingFlowView: View {
 
     private var formattedPhone: String {
         let digits = phone.filter(\.isNumber)
-        let a = String(digits.prefix(3))
-        let b = String(digits.dropFirst(3).prefix(3))
-        let c = String(digits.dropFirst(6).prefix(4))
-        if digits.count <= 3 { return a.isEmpty ? "(   )    –" : "(\(a))" }
-        if digits.count <= 6 { return "(\(a)) \(b)" }
-        return "(\(a)) \(b)-\(c)"
+        let area = String(digits.prefix(3))
+        let prefix = String(digits.dropFirst(3).prefix(3))
+        let line = String(digits.dropFirst(6).prefix(4))
+        if digits.count <= 3 { return area.isEmpty ? "(   )    –" : "(\(area))" }
+        if digits.count <= 6 { return "(\(area)) \(prefix)" }
+        return "(\(area)) \(prefix)-\(line)"
     }
 
     private func codeDigit(at index: Int) -> String {
@@ -273,40 +321,49 @@ struct OnboardingFlowView: View {
         return String(code[code.index(code.startIndex, offsetBy: index)])
     }
 
-    @MainActor private func sendCode(stayOnCode: Bool = false) async {
+    @MainActor
+    private func sendCode(stayOnCode: Bool = false) async {
         isWorking = true
         defer { isWorking = false }
         do {
             try await AuthService.shared.sendSMSCode(phone: phone)
             if !stayOnCode { step = .code }
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
-    @MainActor private func verifyCode() async {
+    @MainActor
+    private func verifyCode() async {
         isWorking = true
         defer { isWorking = false }
         do {
             authSession = try await AuthService.shared.verifySMSCode(phone: phone, code: code)
-            step = .nameAndHome
-        } catch { errorMessage = error.localizedDescription }
+            step = .name
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
-    @MainActor private func finishOnboarding() async {
+    @MainActor
+    private func finishOnboarding() async {
         guard let authSession else {
             errorMessage = "Your phone number needs to be verified again."
             step = .phone
             return
         }
+
         isWorking = true
         defer { isWorking = false }
+
         do {
             try await AuthService.shared.saveOnboarding(
                 session: authSession,
                 phone: phone,
                 firstName: firstName.trimmed,
                 lastName: lastName.trimmed,
-                address: address.trimmed,
-                city: city.trimmed,
+                address: "",
+                city: "",
                 textScale: textScale,
                 readAloud: readAloud,
                 trustedName: trustedName.trimmed,
@@ -315,11 +372,21 @@ struct OnboardingFlowView: View {
                 canViewActivity: canViewActivity
             )
             step = .complete
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
 
-private enum OnboardingStep { case welcome, phone, code, nameAndHome, trustedContact, accessibility, complete }
+private enum OnboardingStep {
+    case welcome
+    case phone
+    case code
+    case name
+    case trustedContact
+    case accessibility
+    case complete
+}
 
 private struct OnboardingPage<Content: View>: View {
     let step: String?
@@ -355,7 +422,13 @@ private struct OnboardingPage<Content: View>: View {
 private struct NumericKeypad: View {
     @Binding var value: String
     let maximumDigits: Int
-    private let rows = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["", "0", "delete.left.fill"]]
+
+    private let rows = [
+        ["1", "2", "3"],
+        ["4", "5", "6"],
+        ["7", "8", "9"],
+        ["", "0", "delete.left.fill"]
+    ]
 
     var body: some View {
         VStack(spacing: 10) {
@@ -373,8 +446,11 @@ private struct NumericKeypad: View {
                                 }
                             } label: {
                                 Group {
-                                    if key == "delete.left.fill" { Image(systemName: key) }
-                                    else { Text(key) }
+                                    if key == "delete.left.fill" {
+                                        Image(systemName: key)
+                                    } else {
+                                        Text(key)
+                                    }
                                 }
                                 .font(.system(size: 30, weight: .semibold, design: .rounded))
                                 .frame(maxWidth: .infinity, minHeight: 66)
@@ -414,5 +490,7 @@ private struct BellTextField: View {
 }
 
 private extension String {
-    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
+    var trimmed: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
