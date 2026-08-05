@@ -95,21 +95,42 @@ actor AuthService {
         )
 
         if !trustedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            let contact: [String: Any] = [
-                "user_id": session.userID.uuidString,
-                "name": trustedName,
-                "relationship": trustedRelationship,
-                "phone": Self.normalizeUSPhone(trustedPhone),
-                "can_view_activity": canViewActivity
-            ]
-            try await restRequest(
-                path: "family_members",
-                method: "POST",
-                accessToken: session.accessToken,
-                body: contact,
-                prefer: "return=minimal"
+            try await sendEmergencyContactInvite(
+                session: session,
+                firstName: trustedName,
+                relationship: trustedRelationship,
+                phone: trustedPhone,
+                canViewActivity: canViewActivity
             )
         }
+    }
+
+    private func sendEmergencyContactInvite(
+        session: BellAuthSession,
+        firstName: String,
+        relationship: String,
+        phone: String,
+        canViewActivity: Bool
+    ) async throws {
+        let normalized = Self.normalizeUSPhone(phone)
+        guard normalized.count == 12 else { throw BellAuthError.invalidPhone }
+
+        let body: [String: Any] = [
+            "firstName": firstName,
+            "relationship": relationship,
+            "phone": normalized,
+            "canViewActivity": canViewActivity
+        ]
+
+        var request = URLRequest(
+            url: BellEnvironment.supabaseURL.appending(path: "/functions/v1/send-emergency-contact-invite")
+        )
+        request.httpMethod = "POST"
+        request.setValue(BellEnvironment.publishableKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        _ = try await execute(request)
     }
 
     private func authRequest(path: String, body: [String: Any]) async throws -> Data {
@@ -147,6 +168,7 @@ actor AuthService {
             let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             let message = payload?["msg"] as? String
                 ?? payload?["message"] as? String
+                ?? payload?["error"] as? String
                 ?? payload?["error_description"] as? String
                 ?? "Bell could not complete that step. Please try again."
             throw BellAuthError.server(message)
